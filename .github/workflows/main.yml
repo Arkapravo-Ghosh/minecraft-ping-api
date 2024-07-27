@@ -1,0 +1,40 @@
+name: "CI/CD"
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  publish-docker-image:
+    name: Publish Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: set lower case owner name
+        run: |
+          echo "OWNER_LC=${OWNER,,}" >>${GITHUB_ENV}
+        env:
+          OWNER: "${{ github.repository_owner }}"
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ env.OWNER_LC }}
+          password: ${{ secrets.GHCR_PAT }}
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PAT }}
+      - name: Build and Push Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ env.OWNER_LC }}/minecraft-ping-api:latest, docker.io/${{ vars.DOCKERHUB_USERNAME }}/minecraft-ping-api:latest
+        env:
+          BUILDX_NO_DEFAULT_ATTESTATIONS: 1
